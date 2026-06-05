@@ -1,18 +1,7 @@
-import express from 'express'
-import type { Application, Request, Response } from 'express'
+import { app } from './app'
 
-const app: Application = express()
+const PORT: Number = 3000
 
-const PORT: number = 3000
-
-app.use(express.urlencoded({ extended: true }))
-
-app.use(express.json())
-
-app.get('/', (req: Request, res: Response): void => {
-    res.json({ message: "Hello World!" })
-})
-
-app.listen(PORT, () => {
+app.listen(PORT, (): void => {
     console.log(`Server is running on http://localhost:${PORT}`)
 })
