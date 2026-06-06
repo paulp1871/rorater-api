@@ -4,17 +4,10 @@ import { getUsersSearch, getUsersUserid } from 'rozod/endpoints/usersv1'
 
 const requestOptions = { throwOnError: true } as const
 
-export const searchUsersFromRoblox = async (
+export const searchUsersFromRoblox = (
     keyword: string,
     limit: 10 | 25 | 50 | 100 = 10,
-    cursor?: string,
-) => {
-    const parameters = cursor
-        ? { keyword, limit, cursor }
-        : { keyword, limit }
-
-    return fetchApi(getUsersSearch, parameters, requestOptions)
-}
+) => fetchApi(getUsersSearch, { keyword, limit }, requestOptions)
 
 export const getUserAvatarsFromRoblox = (userIds: number[]) =>
     fetchApi(getUsersAvatar, {

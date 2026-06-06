@@ -9,7 +9,7 @@ export const userSearchHandler: RequestHandler<
     unknown,
     unknown,
     ValidatedQueryLocals<UserSearchQuery>
-> = async (_req, res) => {
+> = async (req, res) => {
     try {
         const response = await searchRobloxUsersWithAvatars(
             res.locals.validatedQuery,

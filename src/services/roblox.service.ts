@@ -4,22 +4,18 @@ import {
 } from '../clients/roblox.client'
 import type { UserSearchQuery } from '../schemas/roblox.schema'
 
-const USER_SEARCH_LIMIT = 10
+const USER_SEARCH_LIMIT = 25
 
 export const searchRobloxUsersWithAvatars = async (
-    { keyword, cursor }: UserSearchQuery,
+    { keyword }: UserSearchQuery,
 ) => {
     const searchResponse = await searchUsersFromRoblox(
         keyword,
         USER_SEARCH_LIMIT,
-        cursor,
     )
 
     if (searchResponse.data.length === 0) {
-        return {
-            users: [],
-            nextCursor: searchResponse.nextPageCursor || null,
-        }
+        return { users: [] }
     }
 
     const avatarResponse = await getUserAvatarsFromRoblox(
@@ -47,6 +43,5 @@ export const searchRobloxUsersWithAvatars = async (
                     : null,
             }
         }),
-        nextCursor: searchResponse.nextPageCursor || null,
     }
 }
