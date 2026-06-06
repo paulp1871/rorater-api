@@ -9,9 +9,9 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
 app.get('/', (req: Request, res: Response<{ message: string }>): void => {
-    res.json({ message: "Hello World!" })
+    res.json({ message: 'Hello World!' })
 })
 
-app.use('/roblox', robloxRouter)
+app.use('/api/roblox', robloxRouter)
 
 export { app }

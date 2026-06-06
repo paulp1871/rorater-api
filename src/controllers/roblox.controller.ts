@@ -1,18 +1,22 @@
-import type { RequestHandler, Request, Response } from 'express'
-import { getUserByKeywordFromRoblox } from '../clients/roblox.client'
+import type { RequestHandler } from 'express'
+import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
+import type { UserSearchQuery } from '../schemas/roblox.schema'
+import { searchRobloxUsersWithAvatars } from '../services/roblox.service'
 
-interface KeywordQuery {
-    keyword?: string
-}
-
-export const userSearchHandler: RequestHandler = async (req: Request<{}, {}, {}, KeywordQuery>, res: Response) => {
-    const { keyword } = req.query
-
-    if (!keyword) {
-        return res.status(401).json({ message: "Invalid keyword" })
+export const userSearchHandler: RequestHandler<
+    Record<string, string>,
+    unknown,
+    unknown,
+    unknown,
+    ValidatedQueryLocals<UserSearchQuery>
+> = async (_req, res) => {
+    try {
+        const response = await searchRobloxUsersWithAvatars(
+            res.locals.validatedQuery,
+        )
+        res.json(response)
+    } catch (error) {
+        console.error('Roblox user search failed', error)
+        res.status(502).json({ message: 'Unable to search Roblox users' })
     }
-
-    const data = await getUserByKeywordFromRoblox(keyword)
-
-    res.json(data)
 }
