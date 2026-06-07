@@ -1,5 +1,6 @@
 import { env } from './config/env'
 import express, { Application, Request, Response } from 'express'
+import helmet from 'helmet'
 import cors, { CorsOptions } from 'cors'
 import cookieParser from 'cookie-parser'
 import { robloxRouter } from './routes/roblox.routes'
@@ -7,6 +8,7 @@ import { authRouter } from './routes/auth.routes'
 
 const app: Application = express()
 
+app.use(helmet())
 app.use(cors({
     origin: env.FRONTEND_URL,
     credentials: true
