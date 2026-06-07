@@ -86,7 +86,7 @@ export const handleRobloxCallback: RequestHandler<
             maxAge: SESSION_MAX_AGE_MS,
         })
 
-        res.redirect(`${env.FRONTEND_URL}/dashboard`)
+        res.redirect(`http://localhost:${env.PORT}/api/auth/me`)
     } catch (error) {
         console.error(error)
 
