@@ -9,11 +9,14 @@ export type RobloxUser = {
     robloxUserId: string
     username?: string | undefined
     displayName?: string | undefined
+    avatarUrl?: string | null | undefined
 }
 
 export const createRandomString = (): string =>
     crypto.randomBytes(32).toString('base64url')
 
+// PKCE binds the authorization code to this login attempt. Only the challenge
+// is sent to Roblox; the verifier is retained server-side for the token exchange.
 export const createPkcePair = (): {
     codeVerifier: string
     codeChallenge: string
@@ -53,6 +56,9 @@ export const completeRobloxLogin = async (
     expectedNonce: string,
 ): Promise<RobloxUser> => {
     const tokens = await exchangeCodeForTokens(code, codeVerifier)
+
+    // The signed ID token supplies the Roblox identity, avoiding a separate
+    // userinfo request. The nonce still has to match this browser's login attempt.
     const payload = await verifyRobloxIdToken(tokens.id_token)
     const claims = robloxIdTokenClaimsSchema.parse(payload)
 
@@ -64,5 +70,6 @@ export const completeRobloxLogin = async (
         robloxUserId: claims.sub,
         username: claims.preferred_username,
         displayName: claims.name,
+        avatarUrl: claims.picture,
     }
 }

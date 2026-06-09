@@ -18,13 +18,19 @@ import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
 import type { RobloxCallbackQuery } from '../schemas/auth.schema'
 import { env } from '../config/env'
 
-const SESSION_COOKIE = 'session'
+// __Host- cookies cannot be scoped to another domain or path. Development uses
+// plain names because browsers require __Host- cookies to also be Secure.
+const SESSION_COOKIE =
+    env.NODE_ENV === 'PRODUCTION' ? '__Host-session' : 'session'
+const OAUTH_STATE_COOKIE =
+    env.NODE_ENV === 'PRODUCTION' ? '__Host-oauth_state' : 'oauth_state'
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 const sessionCookieOptions = {
     httpOnly: true,
     secure: env.NODE_ENV === 'PRODUCTION',
     sameSite: 'lax',
+    path: '/',
 } as const
 
 export const startRobloxLogin = (req: Request, res: Response): void => {
@@ -32,6 +38,12 @@ export const startRobloxLogin = (req: Request, res: Response): void => {
     const nonce = createRandomString()
     const { codeVerifier, codeChallenge } = createPkcePair()
 
+    // The cookie binds the callback to this browser, while the server record
+    // keeps the verifier and nonce out of the browser.
+    res.cookie(OAUTH_STATE_COOKIE, state, {
+        ...sessionCookieOptions,
+        maxAge: 10 * 60 * 1000,
+    })
     saveOAuthState(state, codeVerifier, nonce)
 
     const authorizationUrl = buildRobloxAuthorizationUrl({
@@ -40,7 +52,7 @@ export const startRobloxLogin = (req: Request, res: Response): void => {
         codeChallenge,
     })
 
-    res.redirect(authorizationUrl)
+    res.json({ authorizationUrl })
 }
 
 export const handleRobloxCallback: RequestHandler<
@@ -52,6 +64,30 @@ export const handleRobloxCallback: RequestHandler<
 > = async (req, res) => {
     try {
         const query = res.locals.validatedQuery
+        const savedOAuthStateCookie = req.cookies?.[OAUTH_STATE_COOKIE]
+
+        // OAuth transactions are single-use, even when Roblox returns an error.
+        res.clearCookie(OAUTH_STATE_COOKIE, sessionCookieOptions)
+
+        if (
+            typeof savedOAuthStateCookie !== 'string' ||
+            query.state !== savedOAuthStateCookie
+        ) {
+            res.status(403).json({
+                error: 'CSRF state validation failed',
+            })
+            return
+        }
+
+        // Reading deletes the server record to prevent callback replay.
+        const savedOAuthState = getAndDeleteOAuthState(query.state)
+
+        if (!savedOAuthState) {
+            res.status(400).json({
+                error: 'Invalid or expired OAuth state',
+            })
+            return
+        }
 
         if ('error' in query) {
             res.status(400).json({
@@ -62,22 +98,21 @@ export const handleRobloxCallback: RequestHandler<
             return
         }
 
-        const { code, state } = query
-
-        const savedOAuthState = getAndDeleteOAuthState(state)
-
-        if (!savedOAuthState) {
-            res.status(400).json({
-                message: 'Invalid or expired OAuth state',
-            })
-            return
-        }
+        // Keep the current session alive until the replacement identity has
+        // passed code exchange, ID-token verification, and nonce validation.
+        const previousSessionId = req.cookies?.[SESSION_COOKIE]
 
         const robloxUser = await completeRobloxLogin(
-            code,
+            query.code,
             savedOAuthState.codeVerifier,
             savedOAuthState.nonce,
         )
+
+        if (typeof previousSessionId === 'string') {
+            deleteSession(previousSessionId)
+        }
+
+        res.clearCookie(SESSION_COOKIE, sessionCookieOptions)
 
         const sessionId = createSession(robloxUser)
 
@@ -86,12 +121,14 @@ export const handleRobloxCallback: RequestHandler<
             maxAge: SESSION_MAX_AGE_MS,
         })
 
-        res.redirect(`http://localhost:${env.PORT}/api/auth/me`)
+        // TO-DO: make this endpoint redirect to the frontend dashboard
+        // res.redirect(`${env}.FRONTEND_URL`)
+        res.json({ robloxUser })
     } catch (error) {
         console.error(error)
 
         res.status(500).json({
-            message: 'Failed to complete Roblox login',
+            error: 'Failed to complete Roblox login',
         })
     }
 }
@@ -100,14 +137,14 @@ export const meHandler = (req: Request, res: Response): void => {
     const sessionId = req.cookies?.[SESSION_COOKIE]
 
     if (typeof sessionId !== 'string') {
-        res.status(401).json({ message: 'Not authenticated' })
+        res.status(401).json({ error: 'Not authenticated' })
         return
     }
 
     const user = getSession(sessionId)
 
     if (!user) {
-        res.status(401).json({ message: 'Not authenticated' })
+        res.status(401).json({ error: 'Not authenticated' })
         return
     }
 

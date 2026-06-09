@@ -12,6 +12,8 @@ const sessionStore = new Map<string, SessionData>()
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
 
 export const createSession = (user: RobloxUser): string => {
+    // The browser receives only this opaque identifier; user data stays in the
+    // server-side session store.
     const sessionId = crypto.randomBytes(32).toString('hex')
     const now = Date.now()
 

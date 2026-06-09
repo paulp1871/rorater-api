@@ -15,6 +15,8 @@ const CERTS_URL = 'https://apis.roblox.com/oauth/v1/certs'
 let josePromise: Promise<any> | null = null
 const loadJose = (): Promise<any> => (josePromise ??= import('jose'))
 
+// createRemoteJWKSet caches Roblox signing keys and refreshes them when Roblox
+// rotates to an unknown key.
 let jwks: any = null
 const getJwks = async (): Promise<any> => {
     const jose = await loadJose()
@@ -56,10 +58,28 @@ export const verifyRobloxIdToken = async (
     const jose = await loadJose()
     const keySet = await getJwks()
 
+    // jwtVerify checks the signature and standard time claims in addition to
+    // the issuer and audience constraints configured here.
     const { payload } = await jose.jwtVerify(idToken, keySet, {
         issuer: ISSUER,
         audience: env.CLIENT_ID,
+        algorithms: ['ES256'],
+        requiredClaims: ['sub', 'exp', 'iat', 'nonce'],
     })
+
+    // OIDC requires azp to identify this client when a token has multiple
+    // audiences; when present for any token, it must still match this client.
+    if (
+        Array.isArray(payload.aud) &&
+        payload.aud.length > 1 &&
+        typeof payload.azp !== 'string'
+    ) {
+        throw new Error('Roblox ID token is missing an authorized party')
+    }
+
+    if (payload.azp !== undefined && payload.azp !== env.CLIENT_ID) {
+        throw new Error('Invalid authorized party in Roblox ID token')
+    }
 
     return payload
 }

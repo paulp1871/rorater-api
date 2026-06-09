@@ -6,8 +6,9 @@ type OAuthStateData = {
 
 const oauthStateStore = new Map<string, OAuthStateData>();
 
-const STATE_EXPIRY_MS = 2 * 60 * 1000;
+const STATE_EXPIRY_MS = 10 * 60 * 1000;
 
+// Stores secrets associated with the public state value sent through Roblox.
 export function saveOAuthState(
   state: string,
   codeVerifier: string,
@@ -20,6 +21,8 @@ export function saveOAuthState(
   });
 }
 
+// Callback state is consumed once so the same authorization response cannot
+// be replayed.
 export function getAndDeleteOAuthState(state: string): OAuthStateData | null {
   const data = oauthStateStore.get(state);
 

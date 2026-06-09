@@ -12,6 +12,9 @@ const robloxCallbackSuccessSchema = z.object({
 const robloxCallbackErrorSchema = z.object({
     error: z.string().min(1),
     error_description: z.string().optional(),
+    state: z
+        .string({ error: 'Missing state from Roblox callback' })
+        .min(1, 'Missing state from Roblox callback'),
 })
 
 // Roblox redirects back with either ?code&state (success) or ?error (e.g. the
@@ -38,6 +41,7 @@ export const robloxIdTokenClaimsSchema = z.object({
     nonce: z.string(),
     preferred_username: z.string().optional(),
     name: z.string().optional(),
+    picture: z.url().nullable().optional(),
 })
 
 export type RobloxIdTokenClaims = z.output<typeof robloxIdTokenClaimsSchema>
