@@ -1,4 +1,6 @@
 import type { Request, RequestHandler, Response } from 'express'
+import { SESSION_COOKIE } from '../config/cookies'
+import { env } from '../config/env'
 import {
     buildRobloxAuthorizationUrl,
     completeRobloxLogin,
@@ -16,12 +18,7 @@ import {
 } from '../stores/session.store'
 import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
 import type { RobloxCallbackQuery } from '../schemas/auth.schema'
-import { env } from '../config/env'
 
-// __Host- cookies cannot be scoped to another domain or path. Development uses
-// plain names because browsers require __Host- cookies to also be Secure.
-const SESSION_COOKIE =
-    env.NODE_ENV === 'PRODUCTION' ? '__Host-session' : 'session'
 const OAUTH_STATE_COOKIE =
     env.NODE_ENV === 'PRODUCTION' ? '__Host-oauth_state' : 'oauth_state'
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
