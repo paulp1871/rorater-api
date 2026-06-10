@@ -73,9 +73,7 @@ export const handleRobloxCallback: RequestHandler<
             typeof savedOAuthStateCookie !== 'string' ||
             query.state !== savedOAuthStateCookie
         ) {
-            res.status(403).json({
-                error: 'CSRF state validation failed',
-            })
+            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
             return
         }
 
@@ -83,18 +81,12 @@ export const handleRobloxCallback: RequestHandler<
         const savedOAuthState = getAndDeleteOAuthState(query.state)
 
         if (!savedOAuthState) {
-            res.status(400).json({
-                error: 'Invalid or expired OAuth state',
-            })
+            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
             return
         }
 
         if ('error' in query) {
-            res.status(400).json({
-                message: 'Roblox OAuth error',
-                error: query.error,
-                error_description: query.error_description,
-            })
+            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
             return
         }
 
@@ -121,15 +113,11 @@ export const handleRobloxCallback: RequestHandler<
             maxAge: SESSION_MAX_AGE_MS,
         })
 
-        // TO-DO: make this endpoint redirect to the frontend dashboard
-        // res.redirect(`${env}.FRONTEND_URL`)
-        res.json({ robloxUser })
+        res.redirect(env.FRONTEND_URL)
     } catch (error) {
         console.error(error)
 
-        res.status(500).json({
-            error: 'Failed to complete Roblox login',
-        })
+        res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
     }
 }
 
