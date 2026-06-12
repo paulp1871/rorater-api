@@ -30,7 +30,10 @@ const sessionCookieOptions = {
     path: '/',
 } as const
 
-export const startRobloxLogin = (req: Request, res: Response): void => {
+export const startRobloxLogin = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
     const state = createRandomString()
     const nonce = createRandomString()
     const { codeVerifier, codeChallenge } = createPkcePair()
@@ -41,7 +44,7 @@ export const startRobloxLogin = (req: Request, res: Response): void => {
         ...sessionCookieOptions,
         maxAge: 10 * 60 * 1000,
     })
-    saveOAuthState(state, codeVerifier, nonce)
+    await saveOAuthState(state, codeVerifier, nonce)
 
     const authorizationUrl = buildRobloxAuthorizationUrl({
         state,
@@ -75,7 +78,7 @@ export const handleRobloxCallback: RequestHandler<
         }
 
         // Reading deletes the server record to prevent callback replay.
-        const savedOAuthState = getAndDeleteOAuthState(query.state)
+        const savedOAuthState = await getAndDeleteOAuthState(query.state)
 
         if (!savedOAuthState) {
             res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
@@ -98,12 +101,12 @@ export const handleRobloxCallback: RequestHandler<
         )
 
         if (typeof previousSessionId === 'string') {
-            deleteSession(previousSessionId)
+            await deleteSession(previousSessionId)
         }
 
         res.clearCookie(SESSION_COOKIE, sessionCookieOptions)
 
-        const sessionId = createSession(robloxUser)
+        const sessionId = await createSession(robloxUser)
 
         res.cookie(SESSION_COOKIE, sessionId, {
             ...sessionCookieOptions,
@@ -118,7 +121,10 @@ export const handleRobloxCallback: RequestHandler<
     }
 }
 
-export const meHandler = (req: Request, res: Response): void => {
+export const meHandler = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
     const sessionId = req.cookies?.[SESSION_COOKIE]
 
     if (typeof sessionId !== 'string') {
@@ -126,7 +132,7 @@ export const meHandler = (req: Request, res: Response): void => {
         return
     }
 
-    const user = getSession(sessionId)
+    const user = await getSession(sessionId)
 
     if (!user) {
         res.status(401).json({ error: 'Not authenticated' })
@@ -136,11 +142,14 @@ export const meHandler = (req: Request, res: Response): void => {
     res.json({ user })
 }
 
-export const logoutHandler = (req: Request, res: Response): void => {
+export const logoutHandler = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
     const sessionId = req.cookies?.[SESSION_COOKIE]
 
     if (typeof sessionId === 'string') {
-        deleteSession(sessionId)
+        await deleteSession(sessionId)
     }
 
     res.clearCookie(SESSION_COOKIE, sessionCookieOptions)

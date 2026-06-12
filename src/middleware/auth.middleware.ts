@@ -13,7 +13,7 @@ export const requireSession: RequestHandler<
     unknown,
     unknown,
     SessionLocals
-> = (req, res, next) => {
+> = async (req, res, next) => {
     const sessionId = req.cookies?.[SESSION_COOKIE]
 
     if (typeof sessionId !== 'string') {
@@ -21,7 +21,7 @@ export const requireSession: RequestHandler<
         return
     }
 
-    const user = getSession(sessionId)
+    const user = await getSession(sessionId)
 
     if (!user) {
         res.status(401).json({ error: 'Not authenticated' })

@@ -1,46 +1,36 @@
 import crypto from 'node:crypto'
+import { redis } from '../config/redis'
 import type { RobloxUser } from '../services/auth.service'
 
-type SessionData = {
-    user: RobloxUser
-    createdAt: number
-    expiresAt: number
-}
+const SESSION_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 
-const sessionStore = new Map<string, SessionData>()
+const keyFor = (sessionId: string): string => `session:${sessionId}`
 
-const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
-
-export const createSession = (user: RobloxUser): string => {
+export const createSession = async (user: RobloxUser): Promise<string> => {
     // The browser receives only this opaque identifier; user data stays in the
     // server-side session store.
     const sessionId = crypto.randomBytes(32).toString('hex')
-    const now = Date.now()
 
-    sessionStore.set(sessionId, {
-        user,
-        createdAt: now,
-        expiresAt: now + SESSION_EXPIRY_MS,
+    // Redis TTL expires the session for us, replacing the manual expiresAt check.
+    await redis.set(keyFor(sessionId), JSON.stringify(user), {
+        EX: SESSION_EXPIRY_SECONDS,
     })
 
     return sessionId
 }
 
-export const getSession = (sessionId: string): RobloxUser | null => {
-    const data = sessionStore.get(sessionId)
+export const getSession = async (
+    sessionId: string,
+): Promise<RobloxUser | null> => {
+    const raw = await redis.get(keyFor(sessionId))
 
-    if (!data) {
+    if (!raw) {
         return null
     }
 
-    if (Date.now() > data.expiresAt) {
-        sessionStore.delete(sessionId)
-        return null
-    }
-
-    return data.user
+    return JSON.parse(raw) as RobloxUser
 }
 
-export const deleteSession = (sessionId: string): void => {
-    sessionStore.delete(sessionId)
+export const deleteSession = async (sessionId: string): Promise<void> => {
+    await redis.del(keyFor(sessionId))
 }

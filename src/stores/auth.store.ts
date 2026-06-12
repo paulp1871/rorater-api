@@ -1,40 +1,36 @@
+import { redis } from '../config/redis'
+
 type OAuthStateData = {
-  codeVerifier: string;
-  nonce: string;
-  expiresAt: number;
-};
+    codeVerifier: string
+    nonce: string
+}
 
-const oauthStateStore = new Map<string, OAuthStateData>();
+const STATE_EXPIRY_SECONDS = 10 * 60
 
-const STATE_EXPIRY_MS = 10 * 60 * 1000;
+const keyFor = (state: string): string => `oauth_state:${state}`
 
 // Stores secrets associated with the public state value sent through Roblox.
-export function saveOAuthState(
-  state: string,
-  codeVerifier: string,
-  nonce: string
-): void {
-  oauthStateStore.set(state, {
-    codeVerifier,
-    nonce,
-    expiresAt: Date.now() + STATE_EXPIRY_MS,
-  });
+export async function saveOAuthState(
+    state: string,
+    codeVerifier: string,
+    nonce: string,
+): Promise<void> {
+    // Redis TTL expires the state for us, replacing the manual expiresAt check.
+    await redis.set(keyFor(state), JSON.stringify({ codeVerifier, nonce }), {
+        EX: STATE_EXPIRY_SECONDS,
+    })
 }
 
 // Callback state is consumed once so the same authorization response cannot
-// be replayed.
-export function getAndDeleteOAuthState(state: string): OAuthStateData | null {
-  const data = oauthStateStore.get(state);
+// be replayed. GETDEL reads and deletes in a single atomic operation.
+export async function getAndDeleteOAuthState(
+    state: string,
+): Promise<OAuthStateData | null> {
+    const raw = await redis.getDel(keyFor(state))
 
-  oauthStateStore.delete(state);
+    if (!raw) {
+        return null
+    }
 
-  if (!data) {
-    return null;
-  }
-
-  if (Date.now() > data.expiresAt) {
-    return null;
-  }
-
-  return data;
+    return JSON.parse(raw) as OAuthStateData
 }

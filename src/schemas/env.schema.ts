@@ -8,4 +8,5 @@ export const envSchema = z.object({
     SCOPES: z.string(),
     NODE_ENV: z.enum(['DEVELOPMENT', 'PRODUCTION', 'TEST']),
     PORT: z.string().transform(Number),
+    REDIS_URL: z.string().min(1),
 })
