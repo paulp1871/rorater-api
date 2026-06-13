@@ -6,7 +6,7 @@ export const envSchema = z.object({
     REDIRECT_URI: z.url(),
     FRONTEND_URL: z.url(),
     SCOPES: z.string(),
-    NODE_ENV: z.enum(['DEVELOPMENT', 'PRODUCTION', 'TEST']),
+    NODE_ENV: z.enum(['development', 'production', 'test']),
     PORT: z.string().transform(Number),
     REDIS_URL: z.string().min(1),
 })

@@ -20,12 +20,12 @@ import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
 import type { RobloxCallbackQuery } from '../schemas/auth.schema'
 
 const OAUTH_STATE_COOKIE =
-    env.NODE_ENV === 'PRODUCTION' ? '__Host-oauth_state' : 'oauth_state'
+    env.NODE_ENV === 'production' ? '__Host-oauth_state' : 'oauth_state'
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 const sessionCookieOptions = {
     httpOnly: true,
-    secure: env.NODE_ENV === 'PRODUCTION',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
 } as const
