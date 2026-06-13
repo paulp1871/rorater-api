@@ -17,8 +17,13 @@ redis.on('error', (err): void => {
     console.error('Redis client error', err)
 })
 
-export const connectRedis = async (): Promise<void> => {
-    if (!redis.isOpen) {
-        await redis.connect()
-    }
-}
+// Begin connecting as soon as this module is imported. Module evaluation
+// happens before main() runs, so anything constructed during import (the
+// rate-limit Redis store) would otherwise send commands to a still-closed
+// client. Kicking off the connection here puts the client into the
+// "connecting" state, where node-redis queues those commands until ready.
+const connectionPromise = redis.connect()
+
+// connectRedis returns the single shared connection promise so server startup
+// still awaits the real connection and fails fast if it rejects.
+export const connectRedis = (): Promise<unknown> => connectionPromise
