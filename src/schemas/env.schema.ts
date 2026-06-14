@@ -10,6 +10,8 @@ export const envSchema = z
         NODE_ENV: z.enum(['development', 'production', 'test']),
         PORT: z.string().transform(Number),
         REDIS_URL: z.string().min(1),
+        DATABASE_URL: z.string().min(1),
+        DIRECT_URL: z.string().min(1)
     })
     .superRefine((env, context) => {
         if (env.NODE_ENV !== 'production') {
