@@ -27,14 +27,14 @@ export const exchangeCodeForTokens = async (
     code: string,
     codeVerifier: string,
 ): Promise<RobloxTokenResponse> => {
-    const body = new URLSearchParams()
-
-    body.set('grant_type', 'authorization_code')
-    body.set('client_id', env.CLIENT_ID)
-    body.set('client_secret', env.CLIENT_SECRET)
-    body.set('code', code)
-    body.set('redirect_uri', env.REDIRECT_URI)
-    body.set('code_verifier', codeVerifier)
+    const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: env.CLIENT_ID,
+        client_secret: env.CLIENT_SECRET,
+        code,
+        redirect_uri: env.REDIRECT_URI,
+        code_verifier: codeVerifier,
+    })
 
     const response = await fetch(TOKEN_URL, {
         method: 'POST',

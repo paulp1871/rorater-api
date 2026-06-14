@@ -17,7 +17,5 @@ export const getUserAvatarsFromRoblox = (userIds: number[]) =>
         isCircular: false,
     }, requestOptions)
 
-export const getUserInfoFromID = (id: number) =>
-    fetchApi(getUsersUserid, {
-        userId: id,
-    }, requestOptions)
+export const getUserInfoFromRoblox = (userId: number) =>
+    fetchApi(getUsersUserid, { userId }, requestOptions)

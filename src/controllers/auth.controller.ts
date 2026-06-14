@@ -1,6 +1,14 @@
 import type { Request, RequestHandler, Response } from 'express'
-import { SESSION_COOKIE } from '../config/cookies'
+import {
+    cookieOptions,
+    OAUTH_STATE_COOKIE,
+    SESSION_COOKIE,
+    SESSION_MAX_AGE_MS,
+} from '../config/cookies'
 import { env } from '../config/env'
+import type { SessionLocals } from '../middleware/auth.middleware'
+import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
+import type { RobloxCallbackQuery } from '../schemas/auth.schema'
 import {
     buildRobloxAuthorizationUrl,
     completeRobloxLogin,
@@ -14,21 +22,9 @@ import {
 import {
     createSession,
     deleteSession,
-    getSession,
 } from '../stores/session.store'
-import type { ValidatedQueryLocals } from '../middleware/validation.middleware'
-import type { RobloxCallbackQuery } from '../schemas/auth.schema'
 
-const OAUTH_STATE_COOKIE =
-    env.NODE_ENV === 'production' ? '__Host-oauth_state' : 'oauth_state'
-const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
-
-const sessionCookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-} as const
+const AUTH_ERROR_URL = `${env.FRONTEND_URL}/?auth_error=1`
 
 export const startRobloxLogin = async (
     req: Request,
@@ -38,20 +34,14 @@ export const startRobloxLogin = async (
     const nonce = createRandomString()
     const { codeVerifier, codeChallenge } = createPkcePair()
 
-    // The cookie binds the callback to this browser, while the server record
-    // keeps the verifier and nonce out of the browser.
-    res.cookie(OAUTH_STATE_COOKIE, state, {
-        ...sessionCookieOptions,
-        maxAge: 10 * 60 * 1000,
-    })
     await saveOAuthState(state, codeVerifier, nonce)
 
-    const authorizationUrl = buildRobloxAuthorizationUrl({
-        state,
-        nonce,
-        codeChallenge,
+    res.cookie(OAUTH_STATE_COOKIE, state, {
+        ...cookieOptions,
+        maxAge: 10 * 60 * 1000,
     })
 
+    const authorizationUrl = buildRobloxAuthorizationUrl({ state, nonce, codeChallenge })
     res.json({ authorizationUrl })
 }
 
@@ -67,13 +57,14 @@ export const handleRobloxCallback: RequestHandler<
         const savedOAuthStateCookie = req.cookies?.[OAUTH_STATE_COOKIE]
 
         // OAuth transactions are single-use, even when Roblox returns an error.
-        res.clearCookie(OAUTH_STATE_COOKIE, sessionCookieOptions)
+        res.clearCookie(OAUTH_STATE_COOKIE, cookieOptions)
 
         if (
             typeof savedOAuthStateCookie !== 'string' ||
-            query.state !== savedOAuthStateCookie
+            query.state !== savedOAuthStateCookie ||
+            'error' in query
         ) {
-            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
+            res.redirect(AUTH_ERROR_URL)
             return
         }
 
@@ -81,12 +72,7 @@ export const handleRobloxCallback: RequestHandler<
         const savedOAuthState = await getAndDeleteOAuthState(query.state)
 
         if (!savedOAuthState) {
-            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
-            return
-        }
-
-        if ('error' in query) {
-            res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
+            res.redirect(AUTH_ERROR_URL)
             return
         }
 
@@ -94,52 +80,35 @@ export const handleRobloxCallback: RequestHandler<
         // passed code exchange, ID-token verification, and nonce validation.
         const previousSessionId = req.cookies?.[SESSION_COOKIE]
 
-        const robloxUser = await completeRobloxLogin(
-            query.code,
-            savedOAuthState.codeVerifier,
-            savedOAuthState.nonce,
-        )
+        const [robloxUser] = await Promise.all([
+            completeRobloxLogin(query.code, savedOAuthState.codeVerifier, savedOAuthState.nonce),
+            typeof previousSessionId === 'string' ? deleteSession(previousSessionId) : Promise.resolve(),
+        ])
 
-        if (typeof previousSessionId === 'string') {
-            await deleteSession(previousSessionId)
-        }
-
-        res.clearCookie(SESSION_COOKIE, sessionCookieOptions)
+        res.clearCookie(SESSION_COOKIE, cookieOptions)
 
         const sessionId = await createSession(robloxUser)
 
         res.cookie(SESSION_COOKIE, sessionId, {
-            ...sessionCookieOptions,
+            ...cookieOptions,
             maxAge: SESSION_MAX_AGE_MS,
         })
 
         res.redirect(env.FRONTEND_URL)
     } catch (error) {
         console.error(error)
-
-        res.redirect(`${env.FRONTEND_URL}/?auth_error=1`)
+        res.redirect(AUTH_ERROR_URL)
     }
 }
 
-export const meHandler = async (
-    req: Request,
-    res: Response,
-): Promise<void> => {
-    const sessionId = req.cookies?.[SESSION_COOKIE]
-
-    if (typeof sessionId !== 'string') {
-        res.status(401).json({ error: 'Not authenticated' })
-        return
-    }
-
-    const user = await getSession(sessionId)
-
-    if (!user) {
-        res.status(401).json({ error: 'Not authenticated' })
-        return
-    }
-
-    res.json({ user })
+export const meHandler: RequestHandler<
+    Record<string, string>,
+    unknown,
+    unknown,
+    unknown,
+    SessionLocals
+> = (req, res) => {
+    res.json({ user: res.locals.user })
 }
 
 export const logoutHandler = async (
@@ -152,6 +121,6 @@ export const logoutHandler = async (
         await deleteSession(sessionId)
     }
 
-    res.clearCookie(SESSION_COOKIE, sessionCookieOptions)
+    res.clearCookie(SESSION_COOKIE, cookieOptions)
     res.status(204).end()
 }
