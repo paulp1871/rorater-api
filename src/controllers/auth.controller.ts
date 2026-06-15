@@ -23,6 +23,7 @@ import {
     createSession,
     deleteSession,
 } from '../stores/session.store'
+import { upsertUser } from '../db/user.db'
 
 const AUTH_ERROR_URL = `${env.FRONTEND_URL}/?auth_error=1`
 
@@ -84,6 +85,8 @@ export const handleRobloxCallback: RequestHandler<
             completeRobloxLogin(query.code, savedOAuthState.codeVerifier, savedOAuthState.nonce),
             typeof previousSessionId === 'string' ? deleteSession(previousSessionId) : Promise.resolve(),
         ])
+
+        await upsertUser(BigInt(robloxUser.robloxUserId))
 
         res.clearCookie(SESSION_COOKIE, cookieOptions)
 
