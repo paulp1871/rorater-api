@@ -1,5 +1,6 @@
 import { fetchApi } from 'rozod'
-import { getUsersAvatar } from 'rozod/endpoints/thumbnailsv1'
+import { getUsersUseridAvatar } from 'rozod/endpoints/avatarv1'
+import { getAssetsThumbnail3d, getUsersAvatar, getUsersAvatar3d } from 'rozod/endpoints/thumbnailsv1'
 import { getUsersSearch, getUsersUserid } from 'rozod/endpoints/usersv1'
 
 const requestOptions = { throwOnError: true } as const
@@ -19,3 +20,12 @@ export const getUserAvatarsFromRoblox = (userIds: number[]) =>
 
 export const getUserInfoFromRoblox = (userId: number) =>
     fetchApi(getUsersUserid, { userId }, requestOptions)
+
+export const getUserAvatarDetailsFromRoblox = (userId: number) =>
+    fetchApi(getUsersUseridAvatar, { userId }, requestOptions)
+
+export const getUserAvatar3dFromRoblox = (userId: number) =>
+    fetchApi(getUsersAvatar3d, { userId }, requestOptions)
+
+export const getAsset3dFromRoblox = (assetId: number) =>
+    fetchApi(getAssetsThumbnail3d, { assetId }, requestOptions)

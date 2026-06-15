@@ -9,3 +9,9 @@ export const userSearchQuerySchema = z.object({
 })
 
 export type UserSearchQuery = z.output<typeof userSearchQuerySchema>
+
+export const userIdParamSchema = z.object({
+    id: z.coerce.number().int().positive('User ID must be a positive integer'),
+})
+
+export type UserIdParam = z.output<typeof userIdParamSchema>
