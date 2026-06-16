@@ -4,6 +4,7 @@ import type { RobloxUser } from '../services/auth.service'
 import { getSession } from '../stores/session.store'
 
 export interface SessionLocals {
+    sessionId: string
     user: RobloxUser
 }
 
@@ -28,6 +29,7 @@ export const requireSession: RequestHandler<
         return
     }
 
+    res.locals.sessionId = sessionId
     res.locals.user = user
     next()
 }

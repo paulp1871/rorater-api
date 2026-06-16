@@ -5,6 +5,11 @@ import { getUsersSearch, getUsersUserid } from 'rozod/endpoints/usersv1'
 
 const requestOptions = { throwOnError: true } as const
 
+const withBearerAuth = (accessToken: string) => ({
+    ...requestOptions,
+    headers: { Authorization: `Bearer ${accessToken}` },
+})
+
 export const searchUsersFromRoblox = (
     keyword: string,
     limit: 10 | 25 | 50 | 100 = 10,
@@ -24,8 +29,8 @@ export const getUserInfoFromRoblox = (userId: number) =>
 export const getUserAvatarDetailsFromRoblox = (userId: number) =>
     fetchApi(getUsersUseridAvatar, { userId }, requestOptions)
 
-export const getUserAvatar3dFromRoblox = (userId: number) =>
-    fetchApi(getUsersAvatar3d, { userId }, requestOptions)
+export const getUserAvatar3dFromRoblox = (userId: number, accessToken: string) =>
+    fetchApi(getUsersAvatar3d, { userId }, withBearerAuth(accessToken))
 
-export const getAsset3dFromRoblox = (assetId: number) =>
-    fetchApi(getAssetsThumbnail3d, { assetId }, requestOptions)
+export const getAsset3dFromRoblox = (assetId: number, accessToken: string) =>
+    fetchApi(getAssetsThumbnail3d, { assetId }, withBearerAuth(accessToken))

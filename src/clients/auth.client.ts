@@ -23,11 +23,26 @@ const getJwks = async (): Promise<any> => {
     return (jwks ??= jose.createRemoteJWKSet(new URL(CERTS_URL)))
 }
 
-export const exchangeCodeForTokens = async (
+const postToTokenEndpoint = async (params: Record<string, string>): Promise<RobloxTokenResponse> => {
+    const response = await fetch(TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(params),
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Roblox token endpoint error: ${errorText}`)
+    }
+
+    return robloxTokenResponseSchema.parse(await response.json())
+}
+
+export const exchangeCodeForTokens = (
     code: string,
     codeVerifier: string,
-): Promise<RobloxTokenResponse> => {
-    const body = new URLSearchParams({
+): Promise<RobloxTokenResponse> =>
+    postToTokenEndpoint({
         grant_type: 'authorization_code',
         client_id: env.CLIENT_ID,
         client_secret: env.CLIENT_SECRET,
@@ -36,20 +51,20 @@ export const exchangeCodeForTokens = async (
         code_verifier: codeVerifier,
     })
 
-    const response = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body,
+export const refreshAccessToken = async (
+    refreshToken: string,
+): Promise<{ accessToken: string; expiresAt: number; refreshToken?: string }> => {
+    const data = await postToTokenEndpoint({
+        grant_type: 'refresh_token',
+        client_id: env.CLIENT_ID,
+        client_secret: env.CLIENT_SECRET,
+        refresh_token: refreshToken,
     })
-
-    if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to exchange Roblox code: ${errorText}`)
+    return {
+        accessToken: data.access_token,
+        expiresAt: Date.now() + data.expires_in * 1000,
+        ...(data.refresh_token !== undefined && { refreshToken: data.refresh_token }),
     }
-
-    return robloxTokenResponseSchema.parse(await response.json())
 }
 
 export const verifyRobloxIdToken = async (

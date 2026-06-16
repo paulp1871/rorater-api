@@ -34,3 +34,8 @@ export const getSession = async (
 export const deleteSession = async (sessionId: string): Promise<void> => {
     await redis.del(keyFor(sessionId))
 }
+
+export const getAndDeleteSession = async (sessionId: string): Promise<RobloxUser | null> => {
+    const raw = await redis.getDel(keyFor(sessionId))
+    return raw ? (JSON.parse(raw) as RobloxUser) : null
+}

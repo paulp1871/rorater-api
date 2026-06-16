@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import type { SessionLocals } from '../middleware/auth.middleware'
 import type { ValidatedParamsLocals, ValidatedQueryLocals } from '../middleware/validation.middleware'
 import type { UserIdParam, UserSearchQuery } from '../schemas/roblox.schema'
 import { getRobloxUserProfile, searchRobloxUsersWithAvatars } from '../services/roblox.service'
@@ -26,10 +27,13 @@ export const userProfileHandler: RequestHandler<
     unknown,
     unknown,
     unknown,
-    ValidatedParamsLocals<UserIdParam>
+    SessionLocals & ValidatedParamsLocals<UserIdParam>
 > = async (req, res) => {
     try {
-        const response = await getRobloxUserProfile(res.locals.validatedParams.id)
+        const response = await getRobloxUserProfile(
+            res.locals.validatedParams.id,
+            res.locals.sessionId,
+        )
         res.json(response)
     } catch (error) {
         console.error('Roblox user profile fetch failed', error)

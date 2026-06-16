@@ -50,16 +50,22 @@ export const buildRobloxAuthorizationUrl = (params: {
     return url.toString()
 }
 
+export type RobloxTokens = {
+    accessToken: string
+    refreshToken?: string
+    expiresAt: number
+}
+
 export const completeRobloxLogin = async (
     code: string,
     codeVerifier: string,
     expectedNonce: string,
-): Promise<RobloxUser> => {
-    const tokens = await exchangeCodeForTokens(code, codeVerifier)
+): Promise<{ user: RobloxUser; tokens: RobloxTokens }> => {
+    const tokenResponse = await exchangeCodeForTokens(code, codeVerifier)
 
     // The signed ID token supplies the Roblox identity, avoiding a separate
     // userinfo request. The nonce still has to match this browser's login attempt.
-    const payload = await verifyRobloxIdToken(tokens.id_token)
+    const payload = await verifyRobloxIdToken(tokenResponse.id_token)
     const claims = robloxIdTokenClaimsSchema.parse(payload)
 
     if (claims.nonce !== expectedNonce) {
@@ -67,9 +73,16 @@ export const completeRobloxLogin = async (
     }
 
     return {
-        robloxUserId: claims.sub,
-        username: claims.preferred_username,
-        displayName: claims.name,
-        avatarUrl: claims.picture,
+        user: {
+            robloxUserId: claims.sub,
+            username: claims.preferred_username,
+            displayName: claims.name,
+            avatarUrl: claims.picture,
+        },
+        tokens: {
+            accessToken: tokenResponse.access_token,
+            ...(tokenResponse.refresh_token !== undefined && { refreshToken: tokenResponse.refresh_token }),
+            expiresAt: Date.now() + tokenResponse.expires_in * 1000,
+        },
     }
 }

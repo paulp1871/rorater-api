@@ -19,10 +19,8 @@ import {
     getAndDeleteOAuthState,
     saveOAuthState,
 } from '../stores/auth.store'
-import {
-    createSession,
-    deleteSession,
-} from '../stores/session.store'
+import { createSession, deleteSession } from '../stores/session.store'
+import { deleteTokens, saveTokens } from '../stores/token.store'
 import { upsertUser } from '../db/user.db'
 
 const AUTH_ERROR_URL = `${env.FRONTEND_URL}/?auth_error=1`
@@ -81,16 +79,27 @@ export const handleRobloxCallback: RequestHandler<
         // passed code exchange, ID-token verification, and nonce validation.
         const previousSessionId = req.cookies?.[SESSION_COOKIE]
 
-        const [robloxUser] = await Promise.all([
-            completeRobloxLogin(query.code, savedOAuthState.codeVerifier, savedOAuthState.nonce),
-            typeof previousSessionId === 'string' ? deleteSession(previousSessionId) : Promise.resolve(),
+        const { user: robloxUser, tokens } = await completeRobloxLogin(
+            query.code,
+            savedOAuthState.codeVerifier,
+            savedOAuthState.nonce,
+        )
+
+        // createSession runs alongside upsertUser so we have a sessionId to key
+        // the token record. The old session is deleted only after all of this
+        // succeeds, so a crash mid-login leaves the previous session intact.
+        const [sessionId] = await Promise.all([
+            createSession(robloxUser),
+            upsertUser(BigInt(robloxUser.robloxUserId)),
         ])
 
-        await upsertUser(BigInt(robloxUser.robloxUserId))
+        await saveTokens(sessionId, tokens)
+
+        if (typeof previousSessionId === 'string') {
+            await Promise.all([deleteSession(previousSessionId), deleteTokens(previousSessionId)])
+        }
 
         res.clearCookie(SESSION_COOKIE, cookieOptions)
-
-        const sessionId = await createSession(robloxUser)
 
         res.cookie(SESSION_COOKIE, sessionId, {
             ...cookieOptions,
@@ -121,7 +130,7 @@ export const logoutHandler = async (
     const sessionId = req.cookies?.[SESSION_COOKIE]
 
     if (typeof sessionId === 'string') {
-        await deleteSession(sessionId)
+        await Promise.all([deleteSession(sessionId), deleteTokens(sessionId)])
     }
 
     res.clearCookie(SESSION_COOKIE, cookieOptions)

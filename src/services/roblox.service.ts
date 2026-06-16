@@ -8,6 +8,7 @@ import {
 } from '../clients/roblox.client'
 import { getUserRatingStats } from '../db/user.db'
 import type { UserSearchQuery } from '../schemas/roblox.schema'
+import { getValidAccessToken } from './token.service'
 import {
     PROFILE_TTL,
     SEARCH_TTL,
@@ -46,8 +47,12 @@ type UserProfile = {
         thumbnail3d: Thumbnail
     }[]
     averageRating: number | null
-    mostRecentRating: { score: number; raterId: string; createdAt: Date } | null
+    mostRecentRating: { score: number; raterId: string; createdAt: string } | null
 }
+
+// The slow-moving, Roblox-sourced portion of a profile. This is what gets
+// cached; rating stats are merged on top per request (see getRobloxUserProfile).
+type RobloxProfileData = Omit<UserProfile, 'averageRating' | 'mostRecentRating'>
 
 const formatAvatar = (avatar: AvatarData | undefined): Thumbnail => {
     if (!avatar) return null
@@ -84,40 +89,54 @@ export const searchRobloxUsersWithAvatars = ({ keyword }: UserSearchQuery): Prom
         }
     })
 
-export const getRobloxUserProfile = (userId: number): Promise<UserProfile> =>
-    withCache(profileCacheKey(userId), PROFILE_TTL, async () => {
-        const avatarDetailsPromise = getUserAvatarDetailsFromRoblox(userId)
-        const assetThumbnails3dPromise = avatarDetailsPromise.then((details) =>
-            Promise.all(details.assets.map((asset) => getAsset3dFromRoblox(asset.id))),
-        )
+export const getRobloxUserProfile = async (userId: number, sessionId: string): Promise<UserProfile> => {
+    // Validate the session's token before serving any cached data — the cache
+    // must not bypass the authorization check on every request.
+    const accessToken = await getValidAccessToken(sessionId)
 
-        const [userInfo, avatarThumbnail, avatar3d, avatarDetails, ratingStats, assetThumbnails3d] =
-            await Promise.all([
+    // Rating stats change on every rating write, so they are fetched fresh per
+    // request and merged onto the cached Roblox data below. Keeping them out of
+    // the cached blob means a new rating is reflected immediately, with no
+    // invalidation hook for the rating-write path to remember to call.
+    const [robloxProfile, ratingStats] = await Promise.all([
+        withCache(profileCacheKey(userId), PROFILE_TTL, async (): Promise<RobloxProfileData> => {
+            // Phase 1: all token-independent calls run simultaneously
+            const [userInfo, avatarThumbnail, avatarDetails] = await Promise.all([
                 getUserInfoFromRoblox(userId),
                 getUserAvatarsFromRoblox([userId]),
-                getUserAvatar3dFromRoblox(userId),
-                avatarDetailsPromise,
-                getUserRatingStats(BigInt(userId)),
-                assetThumbnails3dPromise,
+                getUserAvatarDetailsFromRoblox(userId),
             ])
 
-        const assetThumbnail3dById = new Map(
-            assetThumbnails3d.map((thumbnail) => [thumbnail.targetId, thumbnail]),
-        )
+            // Phase 2: token-gated calls, now that both token and asset IDs are known
+            const [avatar3d, assetThumbnails3d] = await Promise.all([
+                getUserAvatar3dFromRoblox(userId, accessToken),
+                Promise.all(avatarDetails.assets.map((asset) => getAsset3dFromRoblox(asset.id, accessToken))),
+            ])
 
-        return {
-            id: userInfo.id,
-            username: userInfo.name,
-            displayName: userInfo.displayName,
-            avatar: formatAvatar(avatarThumbnail.data[0]),
-            avatar3d: formatAvatar(avatar3d),
-            currentlyWearing: avatarDetails.assets.map((asset) => ({
-                id: asset.id,
-                name: asset.name,
-                assetType: asset.assetType,
-                thumbnail3d: formatAvatar(assetThumbnail3dById.get(asset.id)),
-            })),
-            averageRating: ratingStats.averageRating,
-            mostRecentRating: ratingStats.mostRecentRating,
-        }
-    })
+            const assetThumbnail3dById = new Map(
+                assetThumbnails3d.map((thumbnail) => [thumbnail.targetId, thumbnail]),
+            )
+
+            return {
+                id: userInfo.id,
+                username: userInfo.name,
+                displayName: userInfo.displayName,
+                avatar: formatAvatar(avatarThumbnail.data[0]),
+                avatar3d: formatAvatar(avatar3d),
+                currentlyWearing: avatarDetails.assets.map((asset) => ({
+                    id: asset.id,
+                    name: asset.name,
+                    assetType: asset.assetType,
+                    thumbnail3d: formatAvatar(assetThumbnail3dById.get(asset.id)),
+                })),
+            }
+        }),
+        getUserRatingStats(BigInt(userId)),
+    ])
+
+    return {
+        ...robloxProfile,
+        averageRating: ratingStats.averageRating,
+        mostRecentRating: ratingStats.mostRecentRating,
+    }
+}

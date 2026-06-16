@@ -28,7 +28,10 @@ export const getUserRatingStats = async (robloxId: bigint) => {
             ? {
                 score: mostRecent.score,
                 raterId: mostRecent.raterId.toString(),
-                createdAt: mostRecent.createdAt,
+                // ISO string (not a Date) so the result is fully JSON-safe, like
+                // raterId above: callers may cache it, and a Date would silently
+                // become a string on the JSON round-trip while still typed Date.
+                createdAt: mostRecent.createdAt.toISOString(),
             }
             : null,
     }
