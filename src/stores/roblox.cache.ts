@@ -1,7 +1,7 @@
 import { redis } from '../config/redis'
 
-export const SEARCH_TTL = 60
-export const PROFILE_TTL = 5 * 60
+export const SEARCH_TTL = 3600
+export const PROFILE_TTL = 86400
 
 export const searchCacheKey = (keyword: string) => `roblox:search:${keyword.toLowerCase()}`
 export const profileCacheKey = (userId: number) => `roblox:profile:${userId}`

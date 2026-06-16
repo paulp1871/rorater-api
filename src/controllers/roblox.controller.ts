@@ -10,15 +10,16 @@ export const userSearchHandler: RequestHandler<
     unknown,
     unknown,
     ValidatedQueryLocals<UserSearchQuery>
-> = async (req, res) => {
+> = async (req, res, next) => {
     try {
         const response = await searchRobloxUsersWithAvatars(
             res.locals.validatedQuery,
         )
         res.json(response)
     } catch (error) {
-        console.error('Roblox user search failed', error)
-        res.status(502).json({ message: 'Unable to search Roblox users' })
+        // Forward to robloxErrorHandler, which distinguishes Roblox rate limits
+        // (429) from other upstream failures (502).
+        next(error)
     }
 }
 
@@ -28,7 +29,7 @@ export const userProfileHandler: RequestHandler<
     unknown,
     unknown,
     SessionLocals & ValidatedParamsLocals<UserIdParam>
-> = async (req, res) => {
+> = async (req, res, next) => {
     try {
         const response = await getRobloxUserProfile(
             res.locals.validatedParams.id,
@@ -36,7 +37,8 @@ export const userProfileHandler: RequestHandler<
         )
         res.json(response)
     } catch (error) {
-        console.error('Roblox user profile fetch failed', error)
-        res.status(502).json({ message: 'Unable to fetch Roblox user profile' })
+        // Forward to robloxErrorHandler, which distinguishes Roblox rate limits
+        // (429) from other upstream failures (502).
+        next(error)
     }
 }
