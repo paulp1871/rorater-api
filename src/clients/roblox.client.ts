@@ -1,8 +1,8 @@
 import { fetchApi } from 'rozod'
 import type { EndpointSchema, ExtractParams, ExtractResponse } from 'rozod'
 import { getUsersUseridAvatar } from 'rozod/endpoints/avatarv1'
-import { getAssetsThumbnail3d, getUsersAvatar, getUsersAvatar3d } from 'rozod/endpoints/thumbnailsv1'
-import { getUsersSearch, getUsersUserid } from 'rozod/endpoints/usersv1'
+import { getUsersAvatar, getUsersAvatar3d } from 'rozod/endpoints/thumbnailsv1'
+import { getUsersSearch, getUsersUserid, postUsers } from 'rozod/endpoints/usersv1'
 import { RobloxRateLimitError } from '../errors/roblox.errors'
 
 // Retry/backoff tuning. We retry transient upstream failures (429 + 5xx) with
@@ -83,11 +83,15 @@ export const getUserAvatarsFromRoblox = (userIds: number[]) =>
 export const getUserInfoFromRoblox = (userId: number) =>
     callRoblox(getUsersUserid, { userId })
 
+// Batch user lookup (POST /v1/users). Resolves many ids in one call, so
+// leaderboard enrichment avoids an N+1 of per-user getUserInfoFromRoblox hits.
+// excludeBannedUsers stays false so a banned ratee still resolves rather than
+// dropping out of the response and leaving a gap in the leaderboard.
+export const getUsersByIdsFromRoblox = (userIds: number[]) =>
+    callRoblox(postUsers, { body: { userIds, excludeBannedUsers: false } })
+
 export const getUserAvatarDetailsFromRoblox = (userId: number) =>
     callRoblox(getUsersUseridAvatar, { userId })
 
 export const getUserAvatar3dFromRoblox = (userId: number, accessToken: string) =>
     callRoblox(getUsersAvatar3d, { userId }, withBearerAuth(accessToken))
-
-export const getAsset3dFromRoblox = (assetId: number, accessToken: string) =>
-    callRoblox(getAssetsThumbnail3d, { assetId }, withBearerAuth(accessToken))

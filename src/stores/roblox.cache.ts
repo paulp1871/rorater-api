@@ -1,10 +1,15 @@
 import { redis } from '../config/redis'
 
-export const SEARCH_TTL = 3600
-export const PROFILE_TTL = 86400
+export const SEARCH_TTL = 14400
+export const PROFILE_TTL = 43200
+// Short: a leaderboard shifts with every rating, so this only smooths bursts of
+// requests away from the Roblox batch lookup rather than serving stale standings.
+export const LEADERBOARD_TTL = 60
 
 export const searchCacheKey = (keyword: string) => `roblox:search:${keyword.toLowerCase()}`
 export const profileCacheKey = (userId: number) => `roblox:profile:${userId}`
+export const leaderboardCacheKey = (kind: string, limit: number) =>
+    `roblox:leaderboard:${kind}:${limit}`
 
 // Tracks fetches that are currently running so concurrent callers for the same
 // key share one result instead of each hitting Roblox (a cache stampede when a

@@ -31,7 +31,11 @@ export const getUserRatingStats = async (robloxId: bigint) => {
         prisma.rating.findFirst({
             where: { ratedId: robloxId },
             orderBy: { createdAt: 'desc' },
-            select: { score: true, raterId: true, createdAt: true },
+            // raterId is deliberately omitted: this stat is served to every
+            // profile viewer, so exposing who left the most recent rating would
+            // leak rater identities. A rater sees their own rating via the
+            // /api/ratings endpoint instead.
+            select: { score: true, createdAt: true },
         }),
     ])
 
@@ -40,10 +44,9 @@ export const getUserRatingStats = async (robloxId: bigint) => {
         mostRecentRating: mostRecent
             ? {
                 score: mostRecent.score,
-                raterId: mostRecent.raterId.toString(),
-                // ISO string (not a Date) so the result is fully JSON-safe, like
-                // raterId above: callers may cache it, and a Date would silently
-                // become a string on the JSON round-trip while still typed Date.
+                // ISO string (not a Date) so the result is fully JSON-safe:
+                // callers may cache it, and a Date would silently become a
+                // string on the JSON round-trip while still typed Date.
                 createdAt: mostRecent.createdAt.toISOString(),
             }
             : null,

@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser'
 import { robloxRouter } from './routes/roblox.routes'
 import { authRouter } from './routes/auth.routes'
 import { ratingRouter } from './routes/rating.routes'
+import { leaderboardRouter } from './routes/leaderboard.routes'
 import { globalRateLimiter } from './middleware/rateLimit.middleware'
 import { appErrorHandler } from './middleware/appError.middleware'
 import { robloxErrorHandler } from './middleware/robloxError.middleware'
@@ -40,6 +41,7 @@ app.get('/', (req: Request, res: Response<{ message: string }>): void => {
 app.use('/api/roblox', robloxRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/ratings', ratingRouter)
+app.use('/api/leaderboard', leaderboardRouter)
 app.use(errorLogger)
 
 // Must be registered after the routers so thrown/rejected handler errors land

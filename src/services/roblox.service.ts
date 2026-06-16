@@ -1,5 +1,4 @@
 import {
-    getAsset3dFromRoblox,
     getUserAvatar3dFromRoblox,
     getUserAvatarDetailsFromRoblox,
     getUserAvatarsFromRoblox,
@@ -44,17 +43,16 @@ type UserProfile = {
         id: number
         name: string
         assetType: { id: number; name: string }
-        thumbnail3d: Thumbnail
     }[]
     averageRating: number | null
-    mostRecentRating: { score: number; raterId: string; createdAt: string } | null
+    mostRecentRating: { score: number; createdAt: string } | null
 }
 
 // The slow-moving, Roblox-sourced portion of a profile. This is what gets
 // cached; rating stats are merged on top per request (see getRobloxUserProfile).
 type RobloxProfileData = Omit<UserProfile, 'averageRating' | 'mostRecentRating'>
 
-const formatAvatar = (avatar: AvatarData | undefined): Thumbnail => {
+const formatAvatar = (avatar: AvatarData | null | undefined): Thumbnail => {
     if (!avatar) return null
     return {
         url: avatar.state === 'Completed' ? avatar.imageUrl : null,
@@ -107,15 +105,11 @@ export const getRobloxUserProfile = async (userId: number, sessionId: string): P
                 getUserAvatarDetailsFromRoblox(userId),
             ])
 
-            // Phase 2: token-gated calls, now that both token and asset IDs are known
-            const [avatar3d, assetThumbnails3d] = await Promise.all([
-                getUserAvatar3dFromRoblox(userId, accessToken),
-                Promise.all(avatarDetails.assets.map((asset) => getAsset3dFromRoblox(asset.id, accessToken))),
-            ])
-
-            const assetThumbnail3dById = new Map(
-                assetThumbnails3d.map((thumbnail) => [thumbnail.targetId, thumbnail]),
-            )
+            // Phase 2: token-gated call, now that the token is known. The 3D
+            // avatar thumbnail is optional, and this endpoint can reject the
+            // OAuth bearer (401/403). Don't let that sink the whole profile —
+            // degrade to a null avatar3d and serve the rest.
+            const avatar3d = await getUserAvatar3dFromRoblox(userId, accessToken).catch(() => null)
 
             return {
                 id: userInfo.id,
@@ -127,7 +121,6 @@ export const getRobloxUserProfile = async (userId: number, sessionId: string): P
                     id: asset.id,
                     name: asset.name,
                     assetType: asset.assetType,
-                    thumbnail3d: formatAvatar(assetThumbnail3dById.get(asset.id)),
                 })),
             }
         }),
