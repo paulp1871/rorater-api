@@ -8,6 +8,19 @@ export const upsertUser = (robloxId: bigint): Promise<void> =>
         select: { robloxId: true },
     }).then(() => undefined)
 
+// Guarantees a users row exists for a Roblox ID without touching lastLoginAt,
+// so a rating can reference a user who has been rated but never logged in.
+// Rating.ratedId is a foreign key to User.robloxId, so this must run before the
+// first rating insert for that user to avoid a constraint violation. (upsertUser
+// is unsuitable here: it bumps lastLoginAt, which is only meaningful on login.)
+export const ensureUserExists = (robloxId: bigint): Promise<void> =>
+    prisma.user.upsert({
+        where: { robloxId },
+        update: {},
+        create: { robloxId },
+        select: { robloxId: true },
+    }).then(() => undefined)
+
 export const getUserRatingStats = async (robloxId: bigint) => {
     const [aggregate, mostRecent] = await Promise.all([
         prisma.rating.aggregate({
