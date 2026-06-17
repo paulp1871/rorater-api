@@ -1,23 +1,23 @@
 import { Router } from 'express'
 import { recentlyRatedHandler, topRatedHandler } from '../controllers/leaderboard.controller'
-import { requireSession, type SessionLocals } from '../middleware/auth.middleware'
 import { validateQuery, type ValidatedQueryLocals } from '../middleware/validation.middleware'
 import { leaderboardQuerySchema, type LeaderboardQuery } from '../schemas/leaderboard.schema'
 
 const leaderboardRouter = Router()
 
-interface LeaderboardLocals extends SessionLocals, ValidatedQueryLocals<LeaderboardQuery> {}
+// Public: leaderboards expose only aggregate, non-identifying data (no raterId),
+// so no session is required. See the cache note in leaderboard.service for how
+// the Roblox lookups behind these endpoints are shielded from anonymous traffic.
+type LeaderboardLocals = ValidatedQueryLocals<LeaderboardQuery>
 
 leaderboardRouter.get<'/top', Record<string, string>, unknown, unknown, unknown, LeaderboardLocals>(
     '/top',
-    requireSession,
     validateQuery(leaderboardQuerySchema),
     topRatedHandler,
 )
 
 leaderboardRouter.get<'/recent', Record<string, string>, unknown, unknown, unknown, LeaderboardLocals>(
     '/recent',
-    requireSession,
     validateQuery(leaderboardQuerySchema),
     recentlyRatedHandler,
 )

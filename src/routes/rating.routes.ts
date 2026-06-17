@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { deleteRatingHandler, getMyRatingHandler, rateUserHandler } from '../controllers/rating.controller'
 import { requireSession, type SessionLocals } from '../middleware/auth.middleware'
+import { requireFrontendOrigin } from '../middleware/origin.middleware'
 import { validateBody, validateParams, type ValidatedBodyLocals, type ValidatedParamsLocals } from '../middleware/validation.middleware'
 import { ratedUserIdParamSchema, ratingBodySchema, type RatedUserIdParam, type RatingBody } from '../schemas/rating.schema'
 
@@ -19,6 +20,7 @@ ratingRouter.get<'/users/:userId', Record<string, string>, unknown, unknown, unk
 ratingRouter.put<'/users/:userId', Record<string, string>, unknown, unknown, unknown, RatingWriteLocals>(
     '/users/:userId',
     requireSession,
+    requireFrontendOrigin,
     validateParams(ratedUserIdParamSchema),
     validateBody(ratingBodySchema),
     rateUserHandler,
@@ -27,6 +29,7 @@ ratingRouter.put<'/users/:userId', Record<string, string>, unknown, unknown, unk
 ratingRouter.delete<'/users/:userId', Record<string, string>, unknown, unknown, unknown, RatingReadLocals>(
     '/users/:userId',
     requireSession,
+    requireFrontendOrigin,
     validateParams(ratedUserIdParamSchema),
     deleteRatingHandler,
 )

@@ -8,8 +8,7 @@ export const LEADERBOARD_TTL = 60
 
 export const searchCacheKey = (keyword: string) => `roblox:search:${keyword.toLowerCase()}`
 export const profileCacheKey = (userId: number) => `roblox:profile:${userId}`
-export const leaderboardCacheKey = (kind: string, limit: number) =>
-    `roblox:leaderboard:${kind}:${limit}`
+export const leaderboardCacheKey = (kind: string) => `roblox:leaderboard:${kind}`
 
 // Tracks fetches that are currently running so concurrent callers for the same
 // key share one result instead of each hitting Roblox (a cache stampede when a
