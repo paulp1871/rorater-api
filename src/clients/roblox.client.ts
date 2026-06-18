@@ -43,9 +43,12 @@ const callRoblox = async <S extends EndpointSchema>(
 ): Promise<ExtractResponse<S>> => {
     for (let attempt = 0; ; attempt++) {
         const response = await fetchApi(endpoint, params, { ...init, returnRaw: true })
-
+        
         if (response.ok) {
             return response.json()
+        } else {
+            const errBody = await response.text(); // or res.json()
+            console.error(response.status, errBody);
         }
 
         const isRetryable = response.status === 429 || response.status >= 500
