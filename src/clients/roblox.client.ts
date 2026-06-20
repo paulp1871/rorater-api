@@ -3,7 +3,17 @@ import type { EndpointSchema, ExtractParams, ExtractResponse } from 'rozod'
 import { getUsersUseridAvatar } from 'rozod/endpoints/avatarv1'
 import { getUsersAvatar, getUsersAvatar3d } from 'rozod/endpoints/thumbnailsv1'
 import { getUsersSearch, getUsersUserid, postUsers } from 'rozod/endpoints/usersv1'
+import { configureServer } from 'rozod'
 import { RobloxRateLimitError } from '../errors/roblox.errors'
+import { env } from '../config/env'
+
+// TEMPORARY: Roblox's OAuth scope-authorization for the avatar-3d thumbnail
+// endpoint is returning 502 "Scope authorization failed" while they finish
+// rescoping thumbnail endpoints. Until that's fixed, authenticate every RoZod
+// call with a dedicated bot account's .ROBLOSECURITY cookie instead of the
+// OAuth bearer. To revert: remove this configureServer call and restore the
+// bearer on getUserAvatar3dFromRoblox (see below).
+configureServer({ cookies: env.ROBLOX_COOKIE })
 
 // Retry/backoff tuning. We retry transient upstream failures (429 + 5xx) with
 // exponential backoff and jitter so a brief Roblox hiccup or rate-limit burst
@@ -47,6 +57,7 @@ const callRoblox = async <S extends EndpointSchema>(
         if (response.ok) {
             return response.json()
         } else {
+            console.log(response)
             const errBody = await response.text(); // or res.json()
             console.error(response.status, errBody);
         }
@@ -65,10 +76,6 @@ const callRoblox = async <S extends EndpointSchema>(
         throw new Error(`Roblox API request failed with status ${response.status}`)
     }
 }
-
-const withBearerAuth = (accessToken: string): RequestInit => ({
-    headers: { Authorization: `Bearer ${accessToken}` },
-})
 
 export const searchUsersFromRoblox = (
     keyword: string,
@@ -96,5 +103,8 @@ export const getUsersByIdsFromRoblox = (userIds: number[]) =>
 export const getUserAvatarDetailsFromRoblox = (userId: number) =>
     callRoblox(getUsersUseridAvatar, { userId })
 
-export const getUserAvatar3dFromRoblox = (userId: number, accessToken: string) =>
-    callRoblox(getUsersAvatar3d, { userId }, withBearerAuth(accessToken))
+// TEMPORARY: auth now comes from the cookie configured at module load, so this
+// no longer takes an OAuth access token. To revert, restore the accessToken
+// parameter and `withBearerAuth(accessToken)` as the third callRoblox arg.
+export const getUserAvatar3dFromRoblox = (userId: number) =>
+    callRoblox(getUsersAvatar3d, { userId })
