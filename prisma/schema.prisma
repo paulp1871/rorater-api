@@ -30,12 +30,6 @@ model Rating {
   rated User @relation("rated", fields: [ratedId], references: [robloxId])
 
   @@unique([raterId, ratedId])
-  // Serves ratedId lookups ordered recent-first: getUserRatingStats and the
-  // top-rated / recently-rated leaderboards. The @@unique index above is
-  // prefixed on raterId and cannot serve ratedId-only queries.
   @@index([ratedId, createdAt])
-  // NOTE: two CHECK constraints also exist on this table (score 1..5 and
-  // rater_id <> rated_id). Prisma cannot model CHECK constraints, so they live
-  // only in the migration SQL — preserve them when editing future migrations.
   @@map("ratings")
 }

@@ -7,7 +7,6 @@ export const envSchema = z
         REDIRECT_URI: z.url(),
         FRONTEND_URL: z.url(),
         SCOPES: z.string(),
-        ROBLOX_COOKIE: z.string(),
         NODE_ENV: z.enum(['development', 'production', 'test']),
         PORT: z.string().transform(Number),
         REDIS_URL: z.string().min(1),
@@ -27,5 +26,27 @@ export const envSchema = z
                     message: `${field} must use HTTPS in production`,
                 })
             }
+        }
+
+        // Redis holds plaintext OAuth access/refresh tokens, so the transport
+        // must be encrypted in production. node-redis uses the rediss:// scheme
+        // to enable TLS.
+        let redisProtocol: string | undefined
+        try {
+            redisProtocol = new URL(env.REDIS_URL).protocol
+        } catch {
+            context.addIssue({
+                code: 'custom',
+                path: ['REDIS_URL'],
+                message: 'REDIS_URL must be a valid URL',
+            })
+        }
+
+        if (redisProtocol !== undefined && redisProtocol !== 'rediss:') {
+            context.addIssue({
+                code: 'custom',
+                path: ['REDIS_URL'],
+                message: 'REDIS_URL must use TLS (rediss://) in production',
+            })
         }
     })

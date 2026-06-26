@@ -88,11 +88,8 @@ export const searchRobloxUsersWithAvatars = ({ keyword }: UserSearchQuery): Prom
     })
 
 export const getRobloxUserProfile = async (userId: number, sessionId: string): Promise<UserProfile> => {
-    // Validate the session's token before serving any cached data — the cache
-    // must not bypass the authorization check on every request. The token still
-    // gates the request, but Roblox data is currently fetched with a cookie
-    // (see roblox.client), so the token itself is no longer forwarded upstream.
-    await getValidAccessToken(sessionId)
+    // validate the session's token before serving any cached data 
+    const accessToken = await getValidAccessToken(sessionId)
 
     // Rating stats change on every rating write, so they are fetched fresh per
     // request and merged onto the cached Roblox data below. Keeping them out of
@@ -107,11 +104,11 @@ export const getRobloxUserProfile = async (userId: number, sessionId: string): P
                 getUserAvatarDetailsFromRoblox(userId),
             ])
 
-            // The 3D avatar thumbnail is optional. It's authed via the cookie
-            // (see roblox.client) while Roblox's OAuth scope-auth for this
-            // endpoint is broken; if it still fails, don't let that sink the
-            // whole profile — degrade to a null avatar3d and serve the rest.
-            const avatar3d = await getUserAvatar3dFromRoblox(userId).catch(() => null)
+            // Phase 2: token-gated call, now that the token is known. The 3D
+            // avatar thumbnail is optional, and this endpoint can reject the
+            // OAuth bearer (401/403). Don't let that sink the whole profile —
+            // degrade to a null avatar3d and serve the rest.
+            const avatar3d = await getUserAvatar3dFromRoblox(userId, accessToken).catch(() => null)
 
             return {
                 id: userInfo.id,
