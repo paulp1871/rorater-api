@@ -160,7 +160,7 @@ PORT=3000
 CLIENT_ID=...
 CLIENT_SECRET=...
 REDIRECT_URI=http://localhost:3000/api/auth/roblox/callback
-SCOPES=openid profile
+SCOPES=openid profile thumbnail:read
 FRONTEND_URL=http://localhost:5173
 
 # Infrastructure
@@ -169,7 +169,7 @@ DATABASE_URL=postgresql://...   # pooled (Neon)
 DIRECT_URL=postgresql://...     # direct connection for migrations
 ```
 
-In production the schema additionally requires HTTPS URLs and a TLS (`rediss://`) Redis URL.
+Note: `SCOPES` and `REDIRECT_URI` must be obtained/configured on your ROBLOX OAuth 2.0 app's page. In production the schema additionally requires HTTPS URLs and a TLS (`rediss://`) Redis URL.
 
 ### Scripts
 - `npm run dev` — local server with reload (`nodemon`)
