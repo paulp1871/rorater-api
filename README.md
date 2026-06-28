@@ -140,7 +140,7 @@ All routes are mounted under `/api`. Endpoints marked 🔒 require an authentica
 
 ### Prerequisites
 - Node.js, a PostgreSQL database, and a Redis instance
-- A Roblox OAuth application (client ID/secret, redirect URI)
+- A Roblox OAuth application (client ID/secret, redirect URI, scopes)
 
 ### Setup
 ```sh
@@ -169,7 +169,7 @@ DATABASE_URL=postgresql://...   # pooled (Neon)
 DIRECT_URL=postgresql://...     # direct connection for migrations
 ```
 
-Note: `SCOPES` and `REDIRECT_URI` must be obtained/configured on your ROBLOX OAuth 2.0 app's page. In production the schema additionally requires HTTPS URLs and a TLS (`rediss://`) Redis URL.
+Note: `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`, and `SCOPES` must be obtained/configured on your ROBLOX OAuth 2.0 app's page. In production the schema additionally requires HTTPS URLs and a TLS (`rediss://`) Redis URL.
 
 ### Scripts
 - `npm run dev` — local server with reload (`nodemon`)
