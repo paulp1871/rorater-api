@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "NODE_ENV=production node dist/server.js",
+    "start": "NODE_ENV=production node dist/src/server.js",
     "build": "prisma generate && tsc -p .",
     "dev": "NODE_ENV=development nodemon src/server.ts",
     "postinstall": "prisma generate"
