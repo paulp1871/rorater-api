@@ -1,6 +1,8 @@
 import { ensureUserExists } from '../db/user.db'
 import { deleteRating, getRating, upsertRating, type RatingRecord } from '../db/rating.db'
-import { RatingNotFoundError, SelfRatingError } from '../errors/rating.errors'
+import { getUserInfoFromRoblox } from '../clients/roblox.client'
+import { RatedUserNotFoundError, RatingNotFoundError, SelfRatingError } from '../errors/rating.errors'
+import { RobloxNotFoundError } from '../errors/roblox.errors'
 
 // Creates or updates the rater's rating of another user. The unique
 // (raterId, ratedId) constraint makes this idempotent, so there is no separate
@@ -12,6 +14,20 @@ export const rateUser = async (
 ): Promise<RatingRecord> => {
     if (raterId === ratedId) {
         throw new SelfRatingError()
+    }
+
+    // Confirm the rated account actually exists on Roblox before persisting
+    // anything, so a caller can't seed the DB/leaderboards with fabricated IDs.
+    // ratedId is bounded to the safe integer range by the schema, so the Number
+    // conversion required by the Roblox client is exact.
+    try {
+        await getUserInfoFromRoblox(Number(ratedId))
+    } catch (error) {
+        if (error instanceof RobloxNotFoundError) {
+            throw new RatedUserNotFoundError()
+        }
+        // Rate limits / upstream failures propagate unchanged (→ 429 / 502).
+        throw error
     }
 
     // The rated user may have been rated without ever logging in; ensure their

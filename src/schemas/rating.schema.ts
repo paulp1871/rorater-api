@@ -1,13 +1,15 @@
 import { z } from 'zod'
+import { MAX_ROBLOX_USER_ID } from './roblox.schema'
 
-// Roblox user IDs can exceed Number.MAX_SAFE_INTEGER, so the rated user id is
-// kept as a BigInt rather than coerced to a number (unlike userIdParamSchema).
-// The raw param is matched as a digit string, then parsed to BigInt.
 export const ratedUserIdParamSchema = z.object({
     userId: z
         .string()
         .regex(/^\d+$/, 'User ID must be a positive integer')
-        .transform((value) => BigInt(value)),
+        .transform((value) => BigInt(value))
+        .refine(
+            (value) => value >= 1n && value <= BigInt(MAX_ROBLOX_USER_ID),
+            'User ID is out of range',
+        ),
 })
 
 export type RatedUserIdParam = z.output<typeof ratedUserIdParamSchema>

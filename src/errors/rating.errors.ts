@@ -22,3 +22,9 @@ export class RatingNotFoundError extends AppError {
         super(404, 'No rating found to delete')
     }
 }
+
+export class RatedUserNotFoundError extends AppError {
+    constructor() {
+        super(404, 'That Roblox user does not exist')
+    }
+}

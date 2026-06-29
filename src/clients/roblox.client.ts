@@ -3,7 +3,7 @@ import type { EndpointSchema, ExtractParams, ExtractResponse } from 'rozod'
 import { getUsersUseridAvatar } from 'rozod/endpoints/avatarv1'
 import { getUsersAvatar, getUsersAvatar3d } from 'rozod/endpoints/thumbnailsv1'
 import { getUsersSearch, getUsersUserid, postUsers } from 'rozod/endpoints/usersv1'
-import { RobloxRateLimitError } from '../errors/roblox.errors'
+import { RobloxNotFoundError, RobloxRateLimitError } from '../errors/roblox.errors'
 
 // Retry/backoff tuning. We retry transient upstream failures (429 + 5xx) with
 // exponential backoff and jitter so a brief Roblox hiccup or rate-limit burst
@@ -58,7 +58,11 @@ const callRoblox = async <S extends EndpointSchema>(
         if (response.status === 429) {
             throw new RobloxRateLimitError(parseRetryAfterSeconds(response.headers.get('retry-after')))
         }
-        
+
+        if (response.status === 404) {
+            throw new RobloxNotFoundError()
+        }
+
         throw new Error(`Roblox API request failed with status ${response.status}`)
     }
 }
